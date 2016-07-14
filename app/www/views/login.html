@@ -1,0 +1,26 @@
+<div class="container-fluid full_flex_window" ng-init="init()">
+    <form class="text-center">
+        <h1 class="slim">
+            Sport Tracker
+        </h1>
+
+        <br>
+
+        <div class="form-group">
+            <select class="form-control">
+                <option disabled selected>Select event</option>
+                <option ng-repeat="event in events" value="{{event.id}}">{{event.name}}</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <input type="number" id="starting_number" class="form-control" placeholder="Starting number">
+        </div>
+
+        <div class="form-group">
+            <input type="number" maxlength="4" id="pin" class="form-control" placeholder="PIN">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+    </form>
+</div>
