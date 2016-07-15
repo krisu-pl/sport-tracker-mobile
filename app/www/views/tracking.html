@@ -1,13 +1,20 @@
-<div class="container-fluid full_flex_window" data-ng-controller="loginController">
+<div class="container-fluid full_flex_window" ng-init="init()">
 
     <div id="tracking_top" class="half_height text-center">
         <div class="flex_center">
             <h4>{{event.name}}</h4>
+            <h3>{{data.eventTime}}</h3>
+            <h3>{{participant.name}}</h3>
             <h1><b>{{participant.starting_number}}</b></h1>
 
             <br>
 
-            <button type="text" class="btn btn-primary btn-block">Start tracking</button>
+            <button type="text" class="btn btn-primary btn-block" ng-if="!data.trackingActive" ng-click="onStartTracking()">
+                Start tracking
+            </button>
+            <button type="text" class="btn btn-warn btn-block" ng-if="data.trackingActive" ng-click="onStopTracking()">
+                Stop tracking
+            </button>
         </div>
     </div>
 

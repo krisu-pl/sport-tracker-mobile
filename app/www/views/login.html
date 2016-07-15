@@ -1,5 +1,6 @@
 <div class="container-fluid full_flex_window" ng-init="init()">
-    <form class="text-center">
+
+    <form class="text-center" ng-submit="onLogin()">
         <h1 class="slim">
             Sport Tracker
         </h1>
@@ -7,20 +8,21 @@
         <br>
 
         <div class="form-group">
-            <select class="form-control">
+            <select class="form-control" ng-model="event_id" required>
                 <option disabled selected>Select event</option>
                 <option ng-repeat="event in events" value="{{event.id}}">{{event.name}}</option>
             </select>
         </div>
 
         <div class="form-group">
-            <input type="number" id="starting_number" class="form-control" placeholder="Starting number">
+            <input type="number" id="starting_number" ng-model="starting_number" class="form-control" placeholder="Starting number">
         </div>
 
         <div class="form-group">
-            <input type="number" maxlength="4" id="pin" class="form-control" placeholder="PIN">
+            <input type="number" maxlength="4" id="pin" ng-model="pin" class="form-control" placeholder="PIN">
         </div>
 
         <button type="submit" class="btn btn-primary btn-block">Sign in</button>
     </form>
+
 </div>

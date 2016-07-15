@@ -1,7 +1,7 @@
 (function () {
     'use-strict';
 
-    var app = angular.module('sport-tracker-mobile', ['ngCordova', 'ui.router']);
+    var app = angular.module('sport-tracker-mobile', ['ngCordova', 'ngStorage', 'ui.router']);
 
     app.run(function($rootScope) {
         $rootScope.endpoint = 'http://192.168.43.4:3000/api/mobile';

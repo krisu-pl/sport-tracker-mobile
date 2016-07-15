@@ -52,5 +52,5 @@ h1,h2,h3,h4,h5,h6 {
 
 #tracking_bottom {
     font-size: 13px;
-    overflow: scroll;
+    overflow-y: scroll;
 }
