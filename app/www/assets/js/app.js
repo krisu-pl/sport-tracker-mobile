@@ -34,7 +34,7 @@ angular.module('sport-tracker-mobile').service('APIService', function ($q, $http
     function sendRequest(method, endpoint) {
         var data = arguments.length <= 2 || arguments[2] === undefined ? null : arguments[2];
 
-        return new Promise(function (resolve, reject) {
+        return $q(function (resolve, reject) {
             $http({
                 method: method,
                 url: $rootScope.endpoint + endpoint,
@@ -162,7 +162,8 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
             $scope.data.eventActive = true;
 
             if ($scope.data.trackingActive && !trackingTimerEnabled) {
-                trackingTimer = $interval(sendLocation, 1000); // update every 5 minutes
+                sendLocation();
+                trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
                 trackingTimerEnabled = true;
             }
         }

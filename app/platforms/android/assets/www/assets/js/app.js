@@ -34,7 +34,7 @@ angular.module('sport-tracker-mobile').service('APIService', function ($q, $http
     function sendRequest(method, endpoint) {
         var data = arguments.length <= 2 || arguments[2] === undefined ? null : arguments[2];
 
-        return new Promise(function (resolve, reject) {
+        return $q(function (resolve, reject) {
             $http({
                 method: method,
                 url: $rootScope.endpoint + endpoint,
@@ -95,7 +95,7 @@ angular.module('sport-tracker-mobile').factory('DataService', function ($localSt
 angular.module('sport-tracker-mobile').service('DeviceService', function ($cordovaGeolocation, $q, $http, $rootScope) {
 
     this.getCurrentPosition = function () {
-        return new Promise(function (resolve, reject) {
+        return $q(function (resolve, reject) {
             var posOptions = { timeout: 10000, enableHighAccuracy: true };
             $cordovaGeolocation.getCurrentPosition(posOptions).then(function (position) {
                 var lat = position.coords.latitude.toFixed(5);
@@ -141,7 +141,7 @@ angular.module('sport-tracker-mobile').controller('loginController', function ($
 });
 'use strict';
 
-angular.module('sport-tracker-mobile').controller('trackingController', function ($rootScope, $scope, $state, $interval, APIService, DataService, DeviceService) {
+angular.module('sport-tracker-mobile').controller('trackingController', function ($rootScope, $scope, $q, $state, $interval, APIService, DataService, DeviceService) {
 
     $scope.event = {};
     $scope.participant = {};
@@ -162,7 +162,8 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
             $scope.data.eventActive = true;
 
             if ($scope.data.trackingActive && !trackingTimerEnabled) {
-                trackingTimer = $interval(sendLocation, 1000); // update every 5 minutes
+                sendLocation();
+                trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
                 trackingTimerEnabled = true;
             }
         }
@@ -201,36 +202,41 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
         var time = getTime();
         var msg = '';
 
-        function getPosition() {
-            return new Promise(function (resolve, reject) {
-                DeviceService.getCurrentPosition.then(function (response) {
+        var getPosition = function getPosition() {
+            return $q(function (resolve, reject) {
+                DeviceService.getCurrentPosition().then(function (response) {
                     resolve(response);
-                }).catch(function (err) {
+                }, function (err) {
                     reject(err);
                 });
             });
-        }
+        };
 
-        function sendToServer(position) {
-            return new Promise(function (resolve, reject) {
-                APIService.sendLocation.then(function (response) {
+        var sendToServer = function sendToServer(position) {
+            return $q(function (resolve, reject) {
+                var data = {
+                    lat: position.lat,
+                    lng: position.lng,
+                    participant_event_id: $scope.participant.id,
+                    timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+                };
+                APIService.sendLocation(data).then(function (response) {
                     resolve({ response: response, position: position });
-                }).catch(function (err) {
+                }, function (err) {
                     reject(err);
                 });
             });
-        }
+        };
 
-        getPosition.then(sendToServer).then(function (_ref) {
+        getPosition().then(sendToServer).then(function (_ref) {
             var response = _ref.response;
-            var lat = _ref.lat;
-            var lng = _ref.lng;
+            var position = _ref.position;
 
-            msg = '<p><b>' + time + '</b> - Location sent (' + lat + ', ' + lng + ')</p>';
+            msg = '<p><b>' + time + '</b> - Location sent (' + position.lat + ', ' + position.lng + ')</p>';
+            trackingLog.prepend(msg);
         }).catch(function (err) {
             console.error(err);
-            msg = '<p class="error"><b>' + time + '</b> - ' + err.message + '</p>';
-        }).all(function () {
+            msg = '<p class="error"><b>' + time + '</b> - ' + err.data + '</p>';
             trackingLog.prepend(msg);
         });
     }

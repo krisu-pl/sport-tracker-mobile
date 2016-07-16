@@ -20,7 +20,8 @@ angular.module('sport-tracker-mobile').controller('trackingController',
                 $scope.data.eventActive = true;
 
                 if($scope.data.trackingActive && !trackingTimerEnabled){
-                    trackingTimer = $interval(sendLocation, 1000); // update every 5 minutes
+                    sendLocation();
+                    trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
                     trackingTimerEnabled = true;
                 }
             }

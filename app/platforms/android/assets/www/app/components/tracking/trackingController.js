@@ -1,5 +1,5 @@
 angular.module('sport-tracker-mobile').controller('trackingController',
-    function ($rootScope, $scope, $state, $interval, APIService, DataService, DeviceService) {
+    function ($rootScope, $scope, $q, $state, $interval, APIService, DataService, DeviceService) {
 
         $scope.event = {};
         $scope.participant = {};
@@ -20,7 +20,8 @@ angular.module('sport-tracker-mobile').controller('trackingController',
                 $scope.data.eventActive = true;
 
                 if($scope.data.trackingActive && !trackingTimerEnabled){
-                    trackingTimer = $interval(sendLocation, 1000); // update every 5 minutes
+                    sendLocation();
+                    trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
                     trackingTimerEnabled = true;
                 }
             }
@@ -60,42 +61,47 @@ angular.module('sport-tracker-mobile').controller('trackingController',
             const time = getTime();
             let msg = '';
 
-            function getPosition(){
-                return new Promise((resolve, reject) => {
-                    DeviceService.getCurrentPosition
-                        .then((response) => {
+            const getPosition = () => {
+                return $q((resolve, reject) => {
+                    DeviceService.getCurrentPosition().then(
+                        (response) => {
                             resolve(response);
-                        })
-                        .catch((err) => {
+                        },
+                        (err) => {
                             reject(err);
-                        })
+                        });
                 });
-            }
+            };
 
-            function sendToServer(position){
-                return new Promise((resolve, reject) => {
-                    APIService.sendLocation
-                        .then((response) => {
+            const sendToServer = (position) => {
+                return $q((resolve, reject) => {
+                    const data = {
+                        lat: position.lat,
+                        lng: position.lng,
+                        participant_event_id: $scope.participant.id,
+                        timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+                    };
+                    APIService.sendLocation(data).then(
+                        (response) => {
                             resolve({response, position});
-                        })
-                        .catch((err) => {
+                        },
+                        (err) => {
                             reject(err);
-                        })
+                        });
                 });
-            }
+            };
 
-            getPosition
+            getPosition()
                 .then(sendToServer)
-                .then(({response, lat, lng}) => {
-                    msg = `<p><b>${time}</b> - Location sent (${lat}, ${lng})</p>`;
+                .then(({response, position}) => {
+                    msg = `<p><b>${time}</b> - Location sent (${position.lat}, ${position.lng})</p>`;
+                    trackingLog.prepend(msg);
                 })
                 .catch((err) => {
                     console.error(err);
-                    msg = `<p class="error"><b>${time}</b> - ${err.message}</p>`;
-                })
-                .all(() => {
+                    msg = `<p class="error"><b>${time}</b> - ${err.data}</p>`;
                     trackingLog.prepend(msg);
-                })
+                });
         }
 
         function getTime(){

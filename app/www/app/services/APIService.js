@@ -1,7 +1,7 @@
 angular.module('sport-tracker-mobile').service('APIService', function ($q, $http, $rootScope) {
 
     function sendRequest(method, endpoint, data = null){
-        return new Promise((resolve, reject) => {
+        return $q((resolve, reject) => {
             $http({
                 method,
                 url: $rootScope.endpoint + endpoint,
