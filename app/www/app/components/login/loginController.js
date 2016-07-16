@@ -1,10 +1,10 @@
 angular.module('sport-tracker-mobile').controller('loginController',
-    function ($rootScope, $scope, $state, EventService, ParticipantService, DataService) {
+    function ($rootScope, $scope, $state, APIService, DataService) {
 
         $scope.events = [];
 
         $scope.init = function () {
-            EventService.getAll().then(
+            APIService.getAllEvents().then(
                 function success (response) {
                     $scope.events = response.data;
                 }
@@ -23,7 +23,7 @@ angular.module('sport-tracker-mobile').controller('loginController',
                 return element.id == $scope.event_id
             });
 
-            ParticipantService.login(data).then(
+            APIService.login(data).then(
                 function success (response) {
                     DataService.setActiveEvent(activeEvent[0]);
                     DataService.setActiveParticipant(response.data.participant);

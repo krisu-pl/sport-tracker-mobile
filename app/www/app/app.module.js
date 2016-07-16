@@ -21,18 +21,8 @@
                 url: '/tracking',
                 class: 'tracking',
                 templateUrl: 'views/tracking.html',
-                controller: 'trackingController',
-                resolve: {
-                    //auth: function ($state) {
-                    //    SessionService.checkSession().then(function success() {
-                    //        TasksService.getMyTasks();
-                    //        FollowService.getMyFriends();
-                    //    }, function error() {
-                    //        $state.go('welcome');
-                    //    });
-                    //}
-                }
-            })
+                controller: 'trackingController'
+            });
 
         $urlRouterProvider.otherwise('/login');
 

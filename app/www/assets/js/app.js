@@ -21,22 +21,45 @@
             url: '/tracking',
             class: 'tracking',
             templateUrl: 'views/tracking.html',
-            controller: 'trackingController',
-            resolve: {
-                //auth: function ($state) {
-                //    SessionService.checkSession().then(function success() {
-                //        TasksService.getMyTasks();
-                //        FollowService.getMyFriends();
-                //    }, function error() {
-                //        $state.go('welcome');
-                //    });
-                //}
-            }
+            controller: 'trackingController'
         });
 
         $urlRouterProvider.otherwise('/login');
     }
 })();
+'use strict';
+
+angular.module('sport-tracker-mobile').service('APIService', function ($q, $http, $rootScope) {
+
+    function sendRequest(method, endpoint) {
+        var data = arguments.length <= 2 || arguments[2] === undefined ? null : arguments[2];
+
+        return new Promise(function (resolve, reject) {
+            $http({
+                method: method,
+                url: $rootScope.endpoint + endpoint,
+                data: data,
+                withCredentials: true
+            }).then(function (response) {
+                resolve(response);
+            }, function (err) {
+                reject(err);
+            });
+        });
+    }
+
+    this.login = function (data) {
+        return sendRequest('POST', '/login', data);
+    };
+
+    this.getAllEvents = function () {
+        return sendRequest('GET', '/getAllEvents');
+    };
+
+    this.sendLocation = function (data) {
+        return sendRequest('POST', '/sendLocation', data);
+    };
+});
 'use strict';
 
 angular.module('sport-tracker-mobile').factory('DataService', function ($localStorage) {
@@ -69,59 +92,29 @@ angular.module('sport-tracker-mobile').factory('DataService', function ($localSt
 });
 'use strict';
 
-angular.module('sport-tracker-mobile').service('EventService', function ($q, $http, $rootScope) {
+angular.module('sport-tracker-mobile').service('DeviceService', function ($cordovaGeolocation, $q, $http, $rootScope) {
 
-    this.getAll = function () {
-        var d = $q.defer();
-
-        $http({
-            method: 'GET',
-            url: $rootScope.endpoint + '/getAllEvents',
-            withCredentials: true
-        }).then(function successCallback(response) {
-            if (response.data.error) {
-                d.reject(response);
-            }
-            d.resolve(response);
-        }, function errorCallback(response) {
-            d.reject(response);
+    this.getCurrentPosition = function () {
+        return $q(function (resolve, reject) {
+            var posOptions = { timeout: 10000, enableHighAccuracy: true };
+            $cordovaGeolocation.getCurrentPosition(posOptions).then(function (position) {
+                var lat = position.coords.latitude.toFixed(5);
+                var lng = position.coords.longitude.toFixed(5);
+                resolve({ lat: lat, lng: lng });
+            }, function (err) {
+                reject(err);
+            });
         });
-
-        return d.promise;
     };
 });
 'use strict';
 
-angular.module('sport-tracker-mobile').service('ParticipantService', function ($q, $http, $rootScope) {
-
-    this.login = function (data) {
-        var d = $q.defer();
-
-        $http({
-            method: 'POST',
-            url: $rootScope.endpoint + '/login',
-            data: data,
-            withCredentials: true
-        }).then(function successCallback(response) {
-            if (response.data.error) {
-                d.reject(response);
-            }
-            d.resolve(response);
-        }, function errorCallback(response) {
-            d.reject(response);
-        });
-
-        return d.promise;
-    };
-});
-'use strict';
-
-angular.module('sport-tracker-mobile').controller('loginController', function ($rootScope, $scope, $state, EventService, ParticipantService, DataService) {
+angular.module('sport-tracker-mobile').controller('loginController', function ($rootScope, $scope, $state, APIService, DataService) {
 
     $scope.events = [];
 
     $scope.init = function () {
-        EventService.getAll().then(function success(response) {
+        APIService.getAllEvents().then(function success(response) {
             $scope.events = response.data;
         });
     };
@@ -138,7 +131,7 @@ angular.module('sport-tracker-mobile').controller('loginController', function ($
             return element.id == $scope.event_id;
         });
 
-        ParticipantService.login(data).then(function success(response) {
+        APIService.login(data).then(function success(response) {
             DataService.setActiveEvent(activeEvent[0]);
             DataService.setActiveParticipant(response.data.participant);
             DataService.setSessionKey(response.data.session_key);
@@ -148,7 +141,7 @@ angular.module('sport-tracker-mobile').controller('loginController', function ($
 });
 'use strict';
 
-angular.module('sport-tracker-mobile').controller('trackingController', function ($rootScope, $scope, $state, $interval, EventService, ParticipantService, DataService) {
+angular.module('sport-tracker-mobile').controller('trackingController', function ($rootScope, $scope, $q, $state, $interval, APIService, DataService, DeviceService) {
 
     $scope.event = {};
     $scope.participant = {};
@@ -162,12 +155,14 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
     var trackingTimer = void 0;
     var trackingTimerEnabled = false;
 
+    var trackingLog = angular.element(document.getElementById('tracking_bottom'));
+
     $scope.$watch('data.eventTime', function (newTime, oldTime) {
         if (newTime.substr(0, 1) != '-') {
             $scope.data.eventActive = true;
 
             if ($scope.data.trackingActive && !trackingTimerEnabled) {
-                trackingTimer = $interval(sendLocation, 1000);
+                trackingTimer = $interval(sendLocation, 1000); // update every 5 minutes
                 trackingTimerEnabled = true;
             }
         }
@@ -186,18 +181,67 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
 
     $scope.onStartTracking = function () {
         $scope.data.trackingActive = true;
+
+        var time = getTime();
+        var msg = '<p class="info"><b>' + time + '</b> - Tracking enabled.</p>';
+        trackingLog.prepend(msg);
     };
 
     $scope.onStopTracking = function () {
         $scope.data.trackingActive = false;
         $interval.cancel(trackingTimer);
         trackingTimerEnabled = false;
+
+        var time = getTime();
+        var msg = '<p class="info"><b>' + time + '</b> - Tracking disabled.</p>';
+        trackingLog.prepend(msg);
     };
 
     function sendLocation() {
-        var time = moment().format('MMMM Do YYYY, hh:mm:ss');
-        var el = document.getElementById('tracking_bottom');
-        angular.element(el).prepend('<p><b>' + time + '</b> - Location sent.</p>');
+        var time = getTime();
+        var msg = '';
+
+        var getPosition = function getPosition() {
+            return $q(function (resolve, reject) {
+                DeviceService.getCurrentPosition().then(function (response) {
+                    resolve(response);
+                }, function (err) {
+                    reject(err);
+                });
+            });
+        };
+
+        var sendToServer = function sendToServer(position) {
+            return $q(function (resolve, reject) {
+                var data = {
+                    lat: position.lat,
+                    lng: position.lng,
+                    participant_event_id: $scope.participant.id,
+                    timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+                };
+                APIService.sendLocation(data).then(function (response) {
+                    resolve({ response: response, position: position });
+                }, function (err) {
+                    reject(err);
+                });
+            });
+        };
+
+        getPosition().then(sendToServer).then(function (_ref) {
+            var response = _ref.response;
+            var position = _ref.position;
+
+            msg = '<p><b>' + time + '</b> - Location sent (' + position.lat + ', ' + position.lng + ')</p>';
+            trackingLog.prepend(msg);
+        }).catch(function (err) {
+            console.error(err);
+            msg = '<p class="error"><b>' + time + '</b> - ' + err.data + '</p>';
+            trackingLog.prepend(msg);
+        });
+    }
+
+    function getTime() {
+        return moment().format('DD.MM.YYYY, HH:mm:ss');
     }
 
     /**
