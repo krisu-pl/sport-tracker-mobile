@@ -6,7 +6,7 @@
     var app = angular.module('sport-tracker-mobile', ['ngCordova', 'ngStorage', 'ui.router']);
 
     app.run(function ($rootScope) {
-        $rootScope.endpoint = 'http://192.168.43.4:3000/api/mobile';
+        $rootScope.endpoint = 'http://178.62.21.70:3001/api/mobile';
     });
 
     app.config(routeConfig);
@@ -157,13 +157,106 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
 
     var trackingLog = angular.element(document.getElementById('tracking_bottom'));
 
+    var bgGeo;
+
+    document.addEventListener("deviceready", function () {
+        bgGeo = window.BackgroundGeolocation;
+
+        bgGeo.configure({
+            // Geolocation config
+            desiredAccuracy: 0,
+            distanceFilter: 10,
+            stationaryRadius: 10,
+            pausesLocationUpdatesAutomatically: false,
+
+            // Activity Recognition config
+            activityType: 'Fitness',
+            activityRecognitionInterval: 5000,
+            stopTimeout: 5,
+
+            // Application config
+            debug: false
+        }, function (state) {
+            // This callback is executed when the plugin is ready to use.
+            console.log('BackgroundGeolocation ready ', state);
+            logInfo('BackgroundGeolocation ready');
+        });
+
+        var sendToServer = function sendToServer(position) {
+            return $q(function (resolve, reject) {
+                var data = {
+                    lat: position.latitude,
+                    lng: position.longitude,
+                    participant_event_id: $scope.participant.id,
+                    timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+                };
+                APIService.sendLocation(data).then(function (response) {
+                    resolve({ response: response, position: position });
+                }, function (err) {
+                    reject(err);
+                });
+            });
+        };
+
+        //This callback will be executed every time a geolocation is recorded in the background.
+        var callbackFn = function callbackFn(location, taskId) {
+
+            var time = getTime();
+            var msg = '';
+            var position = location.coords;
+
+            sendToServer(position).then(function (_ref) {
+                var response = _ref.response;
+                var position = _ref.position;
+
+                msg = 'Location sent (' + position.latitude.toFixed(5) + ', ' + position.longitude.toFixed(5) + ')';
+                logMessage(msg);
+            }).catch(function (err) {
+                logError(err.data);
+            });
+
+            // Must signal completion of your callbackFn.
+            bgGeo.finish(taskId);
+        };
+
+        // This callback will be executed if a location-error occurs.  Eg: this will be called if user disables location-services.
+        var failureFn = function failureFn(errorCode) {
+            logError('BackgroundGeoLocation error' + errorCode);
+        };
+
+        // Listen to location events & errors.
+        bgGeo.on('location', callbackFn, failureFn);
+
+        // Fired whenever state changes from moving->stationary or vice-versa.
+        bgGeo.on('motionchange', function (isMoving) {
+            logInfo('MotionChange: ' + isMoving);
+        });
+    });
+
+    function logMessage(msg) {
+        var type = arguments.length <= 1 || arguments[1] === undefined ? "" : arguments[1];
+
+        var time = getTime();
+        msg = '<p class="' + type + '"><b>' + time + '</b> - ' + msg + '</p>';
+        trackingLog.prepend(msg);
+    }
+
+    function logInfo(msg) {
+        console.log(msg);
+        logMessage(msg, "info");
+    }
+    function logError(msg) {
+        console.error(msg);
+        logMessage(msg, "error");
+    }
+
     $scope.$watch('data.eventTime', function (newTime, oldTime) {
         if (newTime.substr(0, 1) != '-') {
             $scope.data.eventActive = true;
 
             if ($scope.data.trackingActive && !trackingTimerEnabled) {
-                sendLocation();
-                trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
+                // sendLocation();
+                // trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
                 trackingTimerEnabled = true;
             }
         }
@@ -183,19 +276,20 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
     $scope.onStartTracking = function () {
         $scope.data.trackingActive = true;
 
-        var time = getTime();
-        var msg = '<p class="info"><b>' + time + '</b> - Tracking enabled.</p>';
-        trackingLog.prepend(msg);
+        bgGeo.start();
+
+        logInfo('Tracking enabled');
     };
 
     $scope.onStopTracking = function () {
         $scope.data.trackingActive = false;
+
+        bgGeo.stop();
+
         $interval.cancel(trackingTimer);
         trackingTimerEnabled = false;
 
-        var time = getTime();
-        var msg = '<p class="info"><b>' + time + '</b> - Tracking disabled.</p>';
-        trackingLog.prepend(msg);
+        logInfo('Tracking disabled');
     };
 
     function sendLocation() {
@@ -212,32 +306,13 @@ angular.module('sport-tracker-mobile').controller('trackingController', function
             });
         };
 
-        var sendToServer = function sendToServer(position) {
-            return $q(function (resolve, reject) {
-                var data = {
-                    lat: position.lat,
-                    lng: position.lng,
-                    participant_event_id: $scope.participant.id,
-                    timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
-                };
-                APIService.sendLocation(data).then(function (response) {
-                    resolve({ response: response, position: position });
-                }, function (err) {
-                    reject(err);
-                });
-            });
-        };
+        getPosition().then(sendToServer).then(function (_ref2) {
+            var response = _ref2.response;
+            var position = _ref2.position;
 
-        getPosition().then(sendToServer).then(function (_ref) {
-            var response = _ref.response;
-            var position = _ref.position;
-
-            msg = '<p><b>' + time + '</b> - Location sent (' + position.lat + ', ' + position.lng + ')</p>';
-            trackingLog.prepend(msg);
+            logMessage('Location sent (' + position.lat + ', ' + position.lng + ')');
         }).catch(function (err) {
-            console.error(err);
-            msg = '<p class="error"><b>' + time + '</b> - ' + err.data + '</p>';
-            trackingLog.prepend(msg);
+            logError(err.data);
         });
     }
 

@@ -1,0 +1,21 @@
+{
+  "name": "app",
+  "homepage": "https://github.com/krisu-pl/sport-tracker-mobile",
+  "authors": [
+    "Krzysztof Gaszyński <kg@wownow.pl>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "devDependencies": {
+    "ngCordovaHTTP": "ng-cordova-http#^0.1.4"
+  }
+}

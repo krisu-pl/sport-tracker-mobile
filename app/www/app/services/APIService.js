@@ -18,6 +18,7 @@ angular.module('sport-tracker-mobile').service('APIService', function ($q, $http
         });
     }
 
+
     this.login = function (data) {
         return sendRequest('POST', '/login', data);
     };

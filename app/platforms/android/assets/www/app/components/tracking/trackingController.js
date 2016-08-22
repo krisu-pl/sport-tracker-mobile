@@ -14,14 +14,100 @@ angular.module('sport-tracker-mobile').controller('trackingController',
         let trackingTimerEnabled = false;
 
         const trackingLog = angular.element(document.getElementById('tracking_bottom'));
-        
+
+        var bgGeo;
+
+        document.addEventListener("deviceready", function () {
+            bgGeo = window.BackgroundGeolocation;
+
+            bgGeo.configure({
+                // Geolocation config
+                desiredAccuracy: 0,
+                distanceFilter: 10,
+                stationaryRadius: 50,
+                locationUpdateInterval: 1000,
+                fastestLocationUpdateInterval: 5000,
+                pausesLocationUpdatesAutomatically: false,
+
+                // Activity Recognition config
+                activityType: 'AutomotiveNavigation',
+                activityRecognitionInterval: 5000,
+                stopTimeout: 5,
+
+                // Application config
+                debug: true,
+                stopOnTerminate: false,
+                startOnBoot: true,
+            }, function(state) {
+                // This callback is executed when the plugin is ready to use.
+                console.log('BackgroundGeolocation ready: ', state);
+            });
+
+            const sendToServer = (position) => {
+                return $q((resolve, reject) => {
+                    const data = {
+                        lat: position.latitude,
+                        lng: position.longitude,
+                        participant_event_id: $scope.participant.id,
+                        timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
+                    };
+                    APIService.sendLocation(data).then(
+                        (response) => {
+                            resolve({response, position});
+                        },
+                        (err) => {
+                            reject(err);
+                        });
+                });
+            };
+
+            //This callback will be executed every time a geolocation is recorded in the background.
+            var callbackFn = function(location, taskId) {
+
+                const time = getTime();
+                let msg = '';
+                const position = location.coords;
+
+                sendToServer(position)
+                    .then(({response, position}) => {
+                        msg = `<p><b>${time}</b> - Location sent (${position.latitude}, ${position.longitude})</p>`;
+                        trackingLog.prepend(msg);
+                    })
+                    .catch((err) => {
+                        console.error(err);
+                        msg = `<p class="error"><b>${time}</b> - ${err.data}</p>`;
+                        trackingLog.prepend(msg);
+                    });
+
+                // Must signal completion of your callbackFn.
+                bgGeo.finish(taskId);
+            };
+
+            // This callback will be executed if a location-error occurs.  Eg: this will be called if user disables location-services.
+            var failureFn = function(errorCode) {
+                console.warn('- BackgroundGeoLocation error: ', errorCode);
+
+                const time = getTime();
+                let msg = `<p class="error"><b>${time}</b> - ${errorCode}</p>`;
+                trackingLog.prepend(msg);
+            };
+
+            // Listen to location events & errors.
+            bgGeo.on('location', callbackFn, failureFn);
+
+            // Fired whenever state changes from moving->stationary or vice-versa.
+            bgGeo.on('motionchange', function(isMoving) {
+                console.log('- onMotionChange: ', isMoving);
+            });
+        });
+
         $scope.$watch('data.eventTime', (newTime, oldTime) => {
             if(newTime.substr(0,1) != '-') {
                 $scope.data.eventActive = true;
 
                 if($scope.data.trackingActive && !trackingTimerEnabled){
-                    sendLocation();
-                    trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
+                    // sendLocation();
+                    // trackingTimer = $interval(sendLocation, 10000); // update every 5 minutes
                     trackingTimerEnabled = true;
                 }
             }
@@ -38,8 +124,12 @@ angular.module('sport-tracker-mobile').controller('trackingController',
             showEventTimer();
         };
 
+
+
         $scope.onStartTracking = function () {
             $scope.data.trackingActive = true;
+
+            bgGeo.start();
 
             const time = getTime();
             const msg = `<p class="info"><b>${time}</b> - Tracking enabled.</p>`;
@@ -48,6 +138,9 @@ angular.module('sport-tracker-mobile').controller('trackingController',
 
         $scope.onStopTracking = function () {
             $scope.data.trackingActive = false;
+
+            bgGeo.stop();
+
             $interval.cancel(trackingTimer);
             trackingTimerEnabled = false;
 
@@ -55,6 +148,7 @@ angular.module('sport-tracker-mobile').controller('trackingController',
             const msg = `<p class="info"><b>${time}</b> - Tracking disabled.</p>`;
             trackingLog.prepend(msg);
         };
+
 
 
         function sendLocation() {
@@ -73,23 +167,6 @@ angular.module('sport-tracker-mobile').controller('trackingController',
                 });
             };
 
-            const sendToServer = (position) => {
-                return $q((resolve, reject) => {
-                    const data = {
-                        lat: position.lat,
-                        lng: position.lng,
-                        participant_event_id: $scope.participant.id,
-                        timestamp: moment().format('YYYY-MM-DD HH:mm:ss')
-                    };
-                    APIService.sendLocation(data).then(
-                        (response) => {
-                            resolve({response, position});
-                        },
-                        (err) => {
-                            reject(err);
-                        });
-                });
-            };
 
             getPosition()
                 .then(sendToServer)

@@ -1,4 +1,8 @@
 .idea
+app/plugins
+app/platforms
+app/bower_components
+
 
 # Created by https://www.gitignore.io/api/intellij,node
 
