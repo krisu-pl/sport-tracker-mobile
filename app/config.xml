@@ -8,7 +8,6 @@
         Apache Cordova Team
     </author>
     <content src="index.html" />
-    <plugin name="cordova-plugin-whitelist" version="1" />
     <access origin="*" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
@@ -23,6 +22,13 @@
         <allow-intent href="itms:*" />
         <allow-intent href="itms-apps:*" />
     </platform>
-	<preference name="android-minSdkVersion" value="14" />
-	<preference name="orientation" value="portrait" />
+    <preference name="android-minSdkVersion" value="14" />
+    <preference name="orientation" value="portrait" />
+    <plugin name="cordova-plugin-whitelist" spec="1" />
+    <plugin name="cordova-plugin-geolocation" spec="~2.2.0" />
+    <plugin name="com.transistorsoft.cordova.background-geolocation" spec="~2.0.7" />
+    <plugin name="cordova-plugin-http" spec="~1.2.0" />
+    <engine name="browser" spec="~4.0.0" />
+    <engine name="android" spec="~5.1.1" />
+    <engine name="ios" spec="~4.2.0" />
 </widget>
